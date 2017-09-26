@@ -1,0 +1,605 @@
+From dda049aaab4bbe2fa24174b77a991b87438b6c94 Mon Sep 17 00:00:00 2001
+From: "Andrew C. Smith" <acsmith@gumstix.com>
+Date: Tue, 8 Aug 2017 12:57:05 -0400
+Subject: [PATCH] Changes made to support the Gumstix NXP SCM board.
+
+---
+ .../bindings/sound/fsl,imx-audio-tlv320aic3x.txt   |  27 ++
+ .../imx6dqscm-1gb-qwks-rev3-fix-ldo-gumstix.dts    | 311 +++++++++++++++++++++
+ sound/soc/fsl/Kconfig                              |  13 +
+ sound/soc/fsl/Makefile                             |   2 +
+ sound/soc/fsl/imx-tlv320aic3x.c                    | 186 ++++++++++++
+ 5 files changed, 539 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/sound/fsl,imx-audio-tlv320aic3x.txt
+ create mode 100644 arch/arm/boot/dts/imx6dqscm-1gb-qwks-rev3-fix-ldo-gumstix.dts
+ create mode 100644 sound/soc/fsl/imx-tlv320aic3x.c
+
+diff --git a/Documentation/devicetree/bindings/sound/fsl,imx-audio-tlv320aic3x.txt b/Documentation/devicetree/bindings/sound/fsl,imx-audio-tlv320aic3x.txt
+new file mode 100644
+index 0000000..9e6c4443
+--- /dev/null
++++ b/Documentation/devicetree/bindings/sound/fsl,imx-audio-tlv320aic3x.txt
+@@ -0,0 +1,27 @@
++Audio complex for i.MX6 boards with tlv320aic3x audio codecs.
++
++Required properties:
++- compatible : "fsl,imx-audio-tlv320aic3x"
++- model : The user-visible name of this sound complex.
++- ssi-controller : The phandle of the SSI controller.
++- mux-int-port : The internal port of the i.MX audio muxer (AUDMUX).
++- mux-ext-port : The external port of the i.MX audio muxer.
++
++Note: The AUDMUX port numbering should start at 1, which is consistent with
++hardware manual.
++
++Example:
++
++sound {
++	compatible = "fsl,imx-audio-tlv320aic3x";
++	model = "imx6q-phyflex-tlv320aic3007";
++	ssi-controller = <&ssi2>;
++	audio-codec = <&codec>;
++	audio-routing =
++		"Line Out", "LLOUT",
++		"Line Out", "RLOUT",
++		"Headphone Jack", "HPLOUT",
++		"Headphone Jack", "HPROUT";
++	mux-int-port = <2>;
++	mux-ext-port = <5>;
++};
+diff --git a/arch/arm/boot/dts/imx6dqscm-1gb-qwks-rev3-fix-ldo-gumstix.dts b/arch/arm/boot/dts/imx6dqscm-1gb-qwks-rev3-fix-ldo-gumstix.dts
+new file mode 100644
+index 0000000..4c3bd70
+--- /dev/null
++++ b/arch/arm/boot/dts/imx6dqscm-1gb-qwks-rev3-fix-ldo-gumstix.dts
+@@ -0,0 +1,311 @@
++/*
++ * Copyright (C) 2016 Freescale Semiconductor, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include "imx6dqscm-1gb-qwks-rev2-fix-ldo.dts"
++
++/ {
++	regulators {
++		reg_usb_otg_vbus: regulator@0 {
++			compatible = "regulator-fixed";
++			reg = <0>;
++			regulator-name = "usb_otg_vbus";
++			regulator-min-microvolt = <5000000>;
++			regulator-max-microvolt = <5000000>;
++			enable-active-high;
++		};
++
++		reg_usb_h1_vbus: regulator@1 {
++			compatible = "regulator-fixed";
++			reg = <1>;
++			regulator-name = "usb_h1_vbus";
++			regulator-min-microvolt = <5000000>;
++			regulator-max-microvolt = <5000000>;
++			gpio = <&gpio3 31 0>;
++			enable-active-high;
++		};
++
++		wlan_en_reg: wlan_en {
++			compatible = "regulator-fixed";
++			regulator-name = "wlan-en-regulator";
++			regulator-min-microvolt = <3300000>;
++			regulator-max-microvolt = <3300000>;
++			gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
++			startup-delay-us = <70000>;
++			enable-active-high;
++		};
++
++		wlan_bt_en_reg: wlan_bt_en {
++			compatible = "regulator-fixed";
++			regulator-name = "wlan-bt-en-regulator";
++			regulator-min-microvolt = <3300000>;
++			regulator-max-microvolt = <3300000>;
++//			gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
++			startup-delay-us = <70000>;
++			enable-active-high;
++		};
++	};
++
++	v4l2_cap_1 {
++		compatible = "fsl,imx6q-v4l2-capture";
++		ipu_id = <0>;
++		csi_id = <1>;
++		mclk_source = <0>;
++		status = "disabled";
++	};
++
++	rfkill-switches {
++		compatible = "rfkill-gpio";
++
++		bt {
++			label = "bluetooth";
++			reset-gpio = <&gpio4 17 0>;
++			type = <2>;
++		};
++	};
++
++	sound {
++		compatible = "fsl,imx-audio-tlv320aic3x";
++		model = "tlv320aic3106";
++		ssi-controller = <&ssi2>;
++		audio-codec = <&tlv320aic3106>;
++		audio-routing =
++			"Microphone 1", "LINE1L",
++			"Microphone 1", "LINE1R",
++			"Speaker 1", "HPLOUT",
++			"Speaker 1", "HPROUT";
++		mux-int-port = <2>;
++		mux-ext-port = <4>;
++		clock-frequency = <12000000>;
++		status = "okay";
++	};
++
++};
++
++&audmux {
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_audmux>;
++	status = "okay";
++};
++
++&i2c1 {
++	tlv320aic3106: tlv320aic3x@1b {
++		compatible = "ti,tlv320aic3106";
++		reg = <0x1b>;
++		gpio-reset = <&gpio4 16 GPIO_ACTIVE_LOW>;
++		status = "okay";
++	};
++};
++
++
++&i2c2 {
++	ov564x_mipi: ov564x_mipi@3c {
++		compatible = "ovti,ov564x_mipi";
++		reg = <0x3c>;
++		clocks = <&clks 201>;
++		clock-names = "csi_mclk";
++		DOVDD-supply = <&sw4_reg>;
++		AVDD-supply = <&vgen3_reg>;
++		DVDD-supply = <&vgen2_reg>;
++		pwn-gpios = <&gpio1 19 1>;
++		rst-gpios = <&gpio1 20 0>;
++		csi_id = <1>;
++		mclk = <24000000>;
++		mclk_source = <0>;
++		status = "disabled";
++	};
++
++	pmic: pfuze100@08 {
++		regulators {
++			vgen5_reg: vgen5 {
++				regulator-max-microvolt = <2500000>;
++			};
++		};
++	};
++};
++
++&i2c3 {
++	egalax_ts@04 {
++		compatible = "eeti,egalax_ts";
++		reg = <0x04>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pinctrl_i2c3_egalax_int>;
++		interrupt-parent = <&gpio6>;
++		interrupts = <14 0>;
++		wakeup-gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
++	};
++};
++
++&mipi_csi {
++	status = "okay";
++	ipu_id = <0>;
++	csi_id = <1>;
++	v_channel = <0>;
++	lanes = <2>;
++};
++
++&ssi2 {
++	status = "okay";
++};
++
++&uart5 {
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_uart5>;
++	fsl,uart-has-rtscts;
++};
++
++&usbh1 {
++	vbus-supply = <&reg_usb_h1_vbus>;
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_usbh1>;
++	status = "okay";
++	disable-over-current;
++};
++
++&usdhc1 {
++	label = "SDIO";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_usdhc1>;
++	vmmc-supply = <&wlan_en_reg>;
++	vmmcaux-supply = <&wlan_bt_en_reg>;
++	no-1-8-v;
++	keep-power-in-suspend;
++	enable-sdio-wakeup;
++	non-removable;
++	cap-power-off-card;
++	status = "okay";
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	wlcore@0 {
++		compatible = "ti,wl1835";
++		reg = <0x2>;
++		interrupt-parent = <&gpio5>;
++		interrupts = <10 IRQ_TYPE_EDGE_RISING>;
++	};
++};
++
++
++&usdhc2 {
++	wp-gpios = <>;
++};
++
++&usdhc3 {
++	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
++};
++
++&fec {
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_enet>;
++	phy-mode = "rgmii";
++	phy-reset-gpios = <&gpio1 26 0>;
++	fsl,magic-packet;
++	assigned-clocks = <&clks IMX6QDL_CLK_ENET_REF >;
++	assigned-clock-rates = <50000000>;
++	status = "okay";
++};
++
++&pwm4 {
++	status = "disabled";
++};
++
++&iomuxc {
++
++	imx6qdl-sabresd {
++		pinctrl_usdhc3: usdhc3grp {
++			fsl,pins = <
++				MX6QDL_PAD_SD3_CMD__SD3_CMD	0x17059
++				MX6QDL_PAD_SD3_CLK__SD3_CLK	0x10059
++				MX6QDL_PAD_SD3_DAT0__SD3_DATA0	0x17059
++				MX6QDL_PAD_SD3_DAT1__SD3_DATA1	0x17059
++				MX6QDL_PAD_SD3_DAT2__SD3_DATA2	0x17059
++				MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x17059
++				MX6QDL_PAD_GPIO_4__GPIO1_IO04	0x80000000
++			>;
++		};
++
++		pinctrl_i2c1: i2c1grp {
++			fsl,pins = <
++				MX6QDL_PAD_EIM_D28__I2C1_SDA  0x4001b8b1
++				MX6QDL_PAD_EIM_D21__I2C1_SCL  0x4001b8b1
++			>;
++		};
++
++		pinctrl_usbotg: usbotggrp {
++			fsl,pins = <
++				MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
++			>;
++		};
++		pinctrl_enet: enetgrp {
++			fsl,pins = <
++				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
++				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
++				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x1b030
++				MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b030
++				MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b030
++				MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b030
++				MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b030
++				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b030
++				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x1b0b0
++				MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b030
++				MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b030
++				MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b030
++				MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b030
++				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b030
++				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b030
++				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x1b0b0
++				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29	0x1b0b0
++			>;
++		};
++		pinctrl_audmux: audmux {
++			fsl,pins = <
++				MX6QDL_PAD_DISP0_DAT23__AUD4_RXD  	0x130b0
++				MX6QDL_PAD_DISP0_DAT20__AUD4_TXC  	0x130b0
++				MX6QDL_PAD_DISP0_DAT21__AUD4_TXD  	0x110b0
++				MX6QDL_PAD_DISP0_DAT22__AUD4_TXFS 	0x130b0
++				MX6QDL_PAD_DI0_DISP_CLK__GPIO4_IO16	0x1b0b0
++			>;
++		};
++		pinctrl_uart1: uart1grp {
++			fsl,pins = <
++				MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA	0x1b0b1
++				MX6QDL_PAD_SD3_DAT6__UART1_RX_DATA	0x1b0b1
++			>;
++		};
++
++		pinctrl_uart5: uart5grp {
++			fsl,pins = <
++				MX6QDL_PAD_KEY_COL1__UART5_TX_DATA	0x1b0b1
++				MX6QDL_PAD_KEY_ROW1__UART5_RX_DATA	0x1b0b1
++				MX6QDL_PAD_KEY_COL4__UART5_RTS_B	0x1b0b1
++				MX6QDL_PAD_KEY_ROW4__UART5_CTS_B	0x1b0b1
++			>;
++		};
++
++		pinctrl_usbh1: usbh1grp {
++			fsl,pins = <
++				MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x1b0b1
++				MX6QDL_PAD_EIM_D30__USB_H1_OC		0x1b0b0
++			>;
++		};
++
++		pinctrl_usdhc1: usdhc1grp {
++			fsl,pins = <
++				MX6QDL_PAD_SD1_CMD__SD1_CMD		0x17069
++				MX6QDL_PAD_SD1_CLK__SD1_CLK		0x10069
++				MX6QDL_PAD_SD1_DAT0__SD1_DATA0		0x17069
++				MX6QDL_PAD_SD1_DAT1__SD1_DATA1		0x17069
++				MX6QDL_PAD_SD1_DAT2__SD1_DATA2		0x17069
++				MX6QDL_PAD_SD1_DAT3__SD1_DATA3		0x17069
++				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20		0x13059 /* WL EN */
++				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x13059 /* BT EN */
++				MX6QDL_PAD_DISP0_DAT16__GPIO5_IO10	0x13059 /* WL IRQ */
++			>;
++		};
++	};
++};
+diff --git a/sound/soc/fsl/Kconfig b/sound/soc/fsl/Kconfig
+index a4054f3..ac0a733 100644
+--- a/sound/soc/fsl/Kconfig
++++ b/sound/soc/fsl/Kconfig
+@@ -355,6 +355,19 @@ config SND_SOC_IMX_MC13783
+ 	select SND_SOC_MC13783
+ 	select SND_SOC_IMX_PCM_DMA
+ 
++config SND_SOC_IMX_TLV320AIC3X
++	tristate "SoC Audio support for i.MX6 boards with tlv320aic3x audio codec"
++	depends on OF && I2C
++	select SND_SOC_TLV320AIC3X
++	select SND_SOC_IMX_PCM_DMA
++	select SND_SOC_IMX_AUDMUX
++	select SND_SOC_FSL_SSI
++	help
++		SoC audio for i.MX6 boards with codec TLV320AIC3x attached over
++		SSI interface.
++		Say Y if you want to add support for SoC audio on phyFLEX-i.MX6
++		boards.
++
+ config SND_SOC_FSL_ASOC_CARD
+ 	tristate "Generic ASoC Sound Card with ASRC support"
+ 	depends on OF && I2C
+diff --git a/sound/soc/fsl/Makefile b/sound/soc/fsl/Makefile
+index 207c669..e419337 100644
+--- a/sound/soc/fsl/Makefile
++++ b/sound/soc/fsl/Makefile
+@@ -64,6 +64,7 @@ snd-soc-imx-wm8962-objs := imx-wm8962.o
+ snd-soc-imx-sii902x-objs := imx-sii902x.o
+ snd-soc-imx-spdif-objs := imx-spdif.o
+ snd-soc-imx-mc13783-objs := imx-mc13783.o
++snd-soc-imx-tlv320aic3x-objs := imx-tlv320aic3x.o
+ snd-soc-imx-mqs-objs := imx-mqs.o
+ snd-soc-imx-si476x-objs := imx-si476x.o
+ snd-soc-imx-hdmi-objs := imx-hdmi.o
+@@ -81,6 +82,7 @@ obj-$(CONFIG_SND_SOC_IMX_WM8962) += snd-soc-imx-wm8962.o
+ obj-$(CONFIG_SND_SOC_IMX_SII902X) += snd-soc-imx-sii902x.o
+ obj-$(CONFIG_SND_SOC_IMX_SPDIF) += snd-soc-imx-spdif.o
+ obj-$(CONFIG_SND_SOC_IMX_MC13783) += snd-soc-imx-mc13783.o
++obj-$(CONFIG_SND_SOC_IMX_TLV320AIC3X) += snd-soc-imx-tlv320aic3x.o
+ obj-$(CONFIG_SND_SOC_IMX_MQS) += snd-soc-imx-mqs.o
+ obj-$(CONFIG_SND_SOC_IMX_SI476X) += snd-soc-imx-si476x.o
+ obj-$(CONFIG_SND_SOC_IMX_HDMI) += snd-soc-imx-hdmi.o
+diff --git a/sound/soc/fsl/imx-tlv320aic3x.c b/sound/soc/fsl/imx-tlv320aic3x.c
+new file mode 100644
+index 0000000..e14bcc1
+--- /dev/null
++++ b/sound/soc/fsl/imx-tlv320aic3x.c
+@@ -0,0 +1,186 @@
++/*
++ * Copyright 2014 Dmitry Lavnikevich,
++ * SaM Solutions <d.lavnikevich@sam-solutions.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/module.h>
++#include <linux/i2c.h>
++#include <linux/of.h>
++#include <linux/of_platform.h>
++
++#include "../codecs/tlv320aic3x.h"
++#include "imx-audmux.h"
++#include "imx-ssi.h"
++
++#define CODEC_CLOCK 12000000
++
++
++/* machine dapm widgets */
++static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
++	SND_SOC_DAPM_LINE("Line Out", NULL),
++	SND_SOC_DAPM_LINE("Speaker", NULL),
++	SND_SOC_DAPM_HP("Headphone Jack", NULL),
++	SND_SOC_DAPM_MIC("Mic Jack", NULL),
++	SND_SOC_DAPM_LINE("Line In", NULL),
++};
++
++static int imx_audmux_config(int int_port, int ext_port)
++{
++	unsigned int ptcr, pdcr;
++
++	int_port--;
++	ext_port--;
++	ptcr = IMX_AUDMUX_V2_PTCR_TFSDIR |
++		IMX_AUDMUX_V2_PTCR_TFSEL(ext_port) |
++		IMX_AUDMUX_V2_PTCR_TCLKDIR |
++		IMX_AUDMUX_V2_PTCR_TCSEL(ext_port);
++	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port);
++	imx_audmux_v2_configure_port(int_port, ptcr, pdcr);
++
++	ptcr = 0;
++	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(int_port);
++	imx_audmux_v2_configure_port(ext_port, ptcr, pdcr);
++
++	return 0;
++}
++
++/* Logic for a aic3x as connected on a imx */
++static int imx_aic3x_init(struct snd_soc_pcm_runtime *rtd)
++{
++//	struct device_node *np = rtd->dev.of_node;
++	int ret;
++	int clock = CODEC_CLOCK; // fix later
++//	struct device *dv = rtd->dev;
++//	struct device dv2 = *dv;
++	//ret = of_property_read_u32(dv2.of_node, "clock-frequency", &clock);
++	//printk("rtd device ... ret=%d, clock=%d\n", rtd->dev, clock);
++//	printk("rtd_dev = %d, rtd_dev_ = %d\n", (int)dv, (int)(&dv2));
++	ret = snd_soc_dai_set_sysclk(rtd->codec_dai, 0, clock,
++		SND_SOC_CLOCK_IN);
++	if (ret < 0)
++		return ret;
++
++	return 0;
++}
++
++static struct snd_soc_dai_link imx_tlv320_dai = {
++	.name = "HiFi",
++	.stream_name = "HiFi",
++	.codec_dai_name = "tlv320aic3x-hifi",
++	.init = &imx_aic3x_init,
++	.dai_fmt = SND_SOC_DAIFMT_I2S |
++		SND_SOC_DAIFMT_NB_NF |
++		SND_SOC_DAIFMT_CBM_CFM,
++};
++
++static struct snd_soc_card imx_tlv320_card = {
++	.num_links = 1,
++	.owner = THIS_MODULE,
++	.dai_link = &imx_tlv320_dai,
++	.dapm_widgets = aic3x_dapm_widgets,
++	.num_dapm_widgets = ARRAY_SIZE(aic3x_dapm_widgets),
++};
++
++static int imx_tlv320_probe(struct platform_device *pdev)
++{
++	struct device_node *np = pdev->dev.of_node;
++	struct device_node *ssi_np, *codec_np;
++	struct platform_device *ssi_pdev;
++	struct i2c_client *codec_dev;
++	int int_port, ext_port;
++	int ret = 0;
++
++	//printk("TLV driver, tlv, snd, test\n");
++
++	//printk("test = %d\n", (int)(&(pdev->dev)));
++	ret = of_property_read_u32(np, "mux-int-port", &int_port);
++	if (ret) {
++		dev_err(&pdev->dev, "mux-int-port missing or invalid\n");
++		return ret;
++	}
++	ret = of_property_read_u32(np, "mux-ext-port", &ext_port);
++	if (ret) {
++		dev_err(&pdev->dev, "mux-ext-port missing or invalid\n");
++		return ret;
++	}
++
++	imx_audmux_config(int_port, ext_port);
++
++	ssi_np = of_parse_phandle(pdev->dev.of_node, "ssi-controller", 0);
++	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
++	if (!ssi_np || !codec_np) {
++		dev_err(&pdev->dev, "phandle missing or invalid\n");
++		ret = -EINVAL;
++		goto fail;
++	}
++
++	ssi_pdev = of_find_device_by_node(ssi_np);
++	if (!ssi_pdev) {
++		dev_err(&pdev->dev, "failed to find SSI platform device\n");
++		ret = -EPROBE_DEFER;
++		goto fail;
++	}
++	codec_dev = of_find_i2c_device_by_node(codec_np);
++	if (!codec_dev) {
++		dev_err(&pdev->dev, "failed to find codec platform device\n");
++		return -EPROBE_DEFER;
++	}
++
++	imx_tlv320_dai.codec_of_node = codec_np;
++	imx_tlv320_dai.cpu_of_node = ssi_np;
++	imx_tlv320_dai.platform_of_node = ssi_np;
++
++	imx_tlv320_card.dev = &pdev->dev;
++	ret = snd_soc_of_parse_card_name(&imx_tlv320_card, "model");
++	if (ret)
++		goto fail;
++	ret = snd_soc_of_parse_audio_routing(&imx_tlv320_card, "audio-routing");
++	if (ret)
++		goto fail;
++
++	platform_set_drvdata(pdev, &imx_tlv320_card);
++
++	ret = devm_snd_soc_register_card(&pdev->dev, &imx_tlv320_card);
++	if (ret) {
++		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
++		goto fail;
++	}
++
++	of_node_put(ssi_np);
++	of_node_put(codec_np);
++
++	return 0;
++
++fail:
++	if (ssi_np)
++		of_node_put(ssi_np);
++	if (codec_np)
++		of_node_put(codec_np);
++
++	return ret;
++}
++
++static const struct of_device_id imx_tlv320_dt_ids[] = {
++	{ .compatible = "fsl,imx-audio-tlv320aic3x", },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, imx_tlv320_dt_ids);
++
++static struct platform_driver imx_tlv320_driver = {
++	.driver = {
++		.name = "tlv320aic3x",
++		.owner = THIS_MODULE,
++		.pm = &snd_soc_pm_ops,
++		.of_match_table = imx_tlv320_dt_ids,
++	},
++	.probe = imx_tlv320_probe,
++};
++module_platform_driver(imx_tlv320_driver);
++
++MODULE_AUTHOR("Lavnikevich Dmitry");
++MODULE_DESCRIPTION("TLV320AIC3X i.MX6 ASoC driver");
++MODULE_LICENSE("GPL");
+-- 
+2.7.4
+
